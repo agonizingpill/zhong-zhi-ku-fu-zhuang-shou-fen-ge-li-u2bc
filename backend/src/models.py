@@ -37,6 +37,28 @@ class GerminationTest(Base):
     state:Mapped[str]=mapped_column(String(20),default='queued')
     prediction:Mapped[dict|None]=mapped_column(JSON,nullable=True)
     error:Mapped[str|None]=mapped_column(String(500),nullable=True)
+class BlindCount(Base):
+    __tablename__='blind_counts'
+    __table_args__=(CheckConstraint('sampled >= 20'),)
+    id:Mapped[int]=mapped_column(primary_key=True)
+    code:Mapped[str]=mapped_column(String(60),unique=True)
+    lot_id:Mapped[int]=mapped_column(ForeignKey('lots.id'))
+    crop:Mapped[str]=mapped_column(String(40))
+    sampled:Mapped[int]=mapped_column(Integer)
+    state:Mapped[str]=mapped_column(String(20),default='counting')
+    count_a:Mapped[int|None]=mapped_column(Integer,nullable=True)
+    counter_a:Mapped[str|None]=mapped_column(String(100),nullable=True)
+    count_a_at:Mapped[str|None]=mapped_column(String(40),nullable=True)
+    count_b:Mapped[int|None]=mapped_column(Integer,nullable=True)
+    counter_b:Mapped[str|None]=mapped_column(String(100),nullable=True)
+    count_b_at:Mapped[str|None]=mapped_column(String(40),nullable=True)
+    supervisor_count:Mapped[int|None]=mapped_column(Integer,nullable=True)
+    supervisor:Mapped[str|None]=mapped_column(String(100),nullable=True)
+    result:Mapped[int|None]=mapped_column(Integer,nullable=True)
+    adoption:Mapped[str|None]=mapped_column(String(20),nullable=True)
+    calibration:Mapped[dict|None]=mapped_column(JSON,nullable=True)
+    test_id:Mapped[int|None]=mapped_column(ForeignKey('germination_tests.id'),unique=True,nullable=True)
+    historical:Mapped[bool]=mapped_column(default=False,nullable=False)
 class Regeneration(Base):
     __tablename__='regenerations'
     id:Mapped[int]=mapped_column(primary_key=True)

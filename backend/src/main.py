@@ -10,7 +10,7 @@ from .models import *
 from .schemas import *
 from .auth import current,writer,supervisor,verify,token
 from .common import pack,lock,add,audit
-from . import renewal_service as renewal,isolation_service as isolation,harvest_service as harvest,sharing_service as sharing
+from . import renewal_service as renewal,isolation_service as isolation,harvest_service as harvest,sharing_service as sharing,blind_service as blind
 from .middleware import Trace,Burst
 queue=redis.Redis.from_url(os.environ['REDIS_URL'],decode_responses=True)
 @asynccontextmanager
@@ -31,7 +31,7 @@ def login(d:Login,s=Depends(session)):
 def me(u=Depends(current)):return {'email':u.email,'role':u.role}
 @app.get('/archive')
 def archive(s=Depends(session),u=Depends(current)):
-    return {cls.__tablename__:[pack(x)for x in s.scalars(select(cls).order_by(cls.id))]for cls in (Accession,Lot,GerminationTest,Regeneration,Plot,Flowering,Pollination,Harvest,Distribution)}
+    return {cls.__tablename__:[pack(x)for x in s.scalars(select(cls).order_by(cls.id))]for cls in (Accession,Lot,GerminationTest,Regeneration,Plot,Flowering,Pollination,Harvest,Distribution)}|{'blind_counts':[blind.view(s,u,x)for x in s.scalars(select(BlindCount).order_by(BlindCount.id))]}
 @app.get('/audits')
 def audits(s=Depends(session),u=Depends(current)):return [pack(x)for x in s.scalars(select(Audit).order_by(Audit.id.desc()).limit(50))]
 @app.post('/accessions')
@@ -57,6 +57,29 @@ def estimate(id:int,s=Depends(session),u=Depends(writer)):
     x.state='queued';x.error=None;s.commit()
     try:queue.rpush('seed-vitality',id)
     except Exception:x.state='failed';x.error='队列不可用，请恢复后重试';s.commit();raise HTTPException(503,x.error)
+    return pack(x)
+@app.post('/blind-counts')
+def blind_open(d:BlindOpenInput,s=Depends(session),u=Depends(writer)):
+    x=blind.open_count(s,d,u);s.commit();return x
+@app.post('/blind-counts/{id}/count')
+def blind_submit(id:int,d:BlindCountInput,s=Depends(session),u=Depends(writer)):
+    x=blind.submit(s,id,d.count,u);s.commit();return x
+@app.post('/blind-counts/{id}/withdraw')
+def blind_withdraw(id:int,s=Depends(session),u=Depends(writer)):
+    x=blind.withdraw(s,id,u);s.commit();return x
+@app.post('/blind-counts/{id}/seal')
+def blind_seal(id:int,s=Depends(session),u=Depends(supervisor)):
+    x=blind.seal(s,id,u);s.commit();return x
+@app.post('/blind-counts/{id}/recount')
+def blind_recount(id:int,d:BlindRecountInput,s=Depends(session),u=Depends(supervisor)):
+    x=blind.recount(s,id,d.count,u);s.commit();return x
+@app.post('/blind-counts/{id}/vitality')
+def blind_vitality(id:int,s=Depends(session),u=Depends(writer)):
+    x,enqueue=blind.vitality(s,id,u);s.commit()
+    if enqueue:
+        try:queue.rpush('seed-vitality',x.id)
+        except Exception:
+            x.state='failed';x.error='队列不可用，请恢复后重试';s.commit();raise HTTPException(503,x.error)
     return pack(x)
 @app.post('/regenerations')
 def regeneration(d:RegenerationInput,s=Depends(session),u=Depends(writer)):

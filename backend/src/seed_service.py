@@ -21,4 +21,9 @@ def seed():
             if not s.scalar(select(Plot).where(Plot.code==code)):s.add(Plot(code=code,row=i//6,position=i%6,capacity=250))
         s.flush();lot=s.scalar(select(Lot).where(Lot.code=='QH-021-G3'))
         if not s.scalar(select(GerminationTest).where(GerminationTest.code=='GT-SEED-80')):s.add(GerminationTest(lot_id=lot.id,code='GT-SEED-80',sampled=100,germinated=80,state='recorded'))
+        # 同作物已结案的双人盲核历史：只用于差值区间拟合，不再生成复测或扣种。
+        history=[('BC-HIST-01',100,81,80),('BC-HIST-02',100,75,77),('BC-HIST-03',200,160,161),('BC-HIST-04',200,171,169),('BC-HIST-05',500,421,423),('BC-HIST-06',300,255,252)]
+        for code,sampled,ca,cb in history:
+            if not s.scalar(select(BlindCount).where(BlindCount.code==code)):
+                s.add(BlindCount(code=code,lot_id=lot.id,crop=a.crop,sampled=sampled,state='sealed',count_a=ca,counter_a='operator@qinghe.demo',count_b=cb,counter_b='supervisor@qinghe.demo',result=ca,adoption='initial',historical=True))
         s.commit();return {cls.__tablename__:s.scalar(select(func.count()).select_from(cls))for cls in (User,Accession,Lot,GerminationTest,Regeneration,Plot,Flowering,Pollination,Harvest,Distribution)}

@@ -53,6 +53,14 @@ class HarvestInput(BaseModel):
     code:str=Field(min_length=3,max_length=60)
     seeds:int=Field(ge=1,le=1000000)
     moisture:float=Field(ge=0,le=40,allow_inf_nan=False)
+class BlindOpenInput(BaseModel):
+    lot_id:int
+    code:str=Field(min_length=3,max_length=60)
+    sampled:int=Field(ge=20,le=1000)
+class BlindCountInput(BaseModel):
+    count:int=Field(ge=0,le=1000)
+class BlindRecountInput(BaseModel):
+    count:int=Field(ge=0,le=1000)
 class DistributionInput(BaseModel):
     lot_id:int
     code:str=Field(min_length=3,max_length=60)
